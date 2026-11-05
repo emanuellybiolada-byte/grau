@@ -1,1 +1,1048 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Jogo de Grau - Wheelie Master Freestyle 2D</title>
+    <!-- Tailwind CSS for UI HUD -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #070913;
+            color: #ffffff;
+            overflow: hidden;
+        }
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+        .neon-glow-cyan {
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.5), inset 0 0 15px rgba(6, 182, 212, 0.3);
+            text-shadow: 0 0 10px rgba(6, 182, 212, 0.8);
+        }
+        .neon-glow-pink {
+            box-shadow: 0 0 15px rgba(236, 72, 153, 0.5), inset 0 0 15px rgba(236, 72, 153, 0.3);
+            text-shadow: 0 0 10px rgba(236, 72, 153, 0.8);
+        }
+        .neon-glow-gold {
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.5), inset 0 0 15px rgba(245, 158, 11, 0.3);
+            text-shadow: 0 0 10px rgba(245, 158, 11, 0.8);
+        }
+        .neon-border-cyan {
+            border-color: #06b6d4;
+            box-shadow: 0 0 12px rgba(6, 182, 212, 0.6);
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        .angle-meter-bar {
+            transition: height 0.04s linear, background-color 0.1s;
+        }
+        .touch-btn:active, .touch-btn.active-key {
+            transform: scale(0.92);
+            filter: brightness(1.3);
+            box-shadow: 0 0 15px rgba(236, 72, 153, 0.8);
+        }
+        /* Custom Scrollbar for Trick Bar on horizontal overflow if needed */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="relative w-screen h-screen overflow-hidden select-none">
 
+    <!-- Game Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Top UI HUD: Score, Best Wheelie Quality, Distance & Multiplier -->
+    <div class="absolute top-3 left-3 right-3 flex justify-between items-start pointer-events-none z-10">
+        
+        <!-- Score & Current Trick Evaluation -->
+        <div class="flex flex-col gap-2">
+            <!-- Style Score Box -->
+            <div class="bg-slate-900/85 backdrop-blur-md border border-cyan-500/50 rounded-2xl p-3 px-5 text-white min-w-[170px] neon-border-cyan">
+                <span class="text-[10px] uppercase tracking-wider text-cyan-400 font-bold block">Pontos de Estilo</span>
+                <div class="text-3xl font-black font-orbitron tracking-wider text-cyan-300">
+                    <span id="scoreText">0</span> <span class="text-xs font-normal text-cyan-500">pts</span>
+                </div>
+            </div>
+
+            <!-- Dynamic Evaluation Badge -->
+            <div id="evalBadge" class="bg-emerald-500/90 text-white text-xs font-black font-orbitron px-4 py-1.5 rounded-full uppercase tracking-widest text-center transition-all duration-200 transform scale-90 neon-glow-cyan">
+                ⚡ <span id="evalRankText">GRAU PASSEIO</span> <span id="trickActiveName" class="text-amber-300 font-normal ml-1"></span>
+            </div>
+        </div>
+
+        <!-- Center: Quality Meter Indicator -->
+        <div class="hidden sm:flex flex-col items-center bg-slate-900/80 backdrop-blur-md border border-slate-800 px-6 py-2 rounded-2xl">
+            <span class="text-[10px] uppercase font-bold text-slate-400 font-orbitron tracking-widest mb-1">Qualidade do Grau</span>
+            <div id="qualityLabel" class="text-lg font-black font-orbitron text-cyan-400">NORMAL</div>
+            <div class="text-[11px] text-amber-400 font-bold mt-0.5">Bônus: <span id="multiplierText">1.0</span>x</div>
+        </div>
+
+        <!-- High Score / Best Quality Record -->
+        <div class="flex flex-col gap-1 items-end">
+            <div class="bg-slate-900/85 backdrop-blur-md border border-amber-500/40 rounded-2xl p-3 px-5 text-right text-white min-w-[150px]">
+                <span class="text-[10px] uppercase tracking-wider text-amber-400 font-bold block"><i class="fas fa-trophy text-amber-400 mr-1"></i> Recorde Estilo</span>
+                <div class="text-2xl font-bold font-orbitron text-amber-300">
+                    <span id="highScoreText">0</span> <span class="text-xs text-amber-500 font-normal">pts</span>
+                </div>
+            </div>
+            <div class="bg-slate-900/70 backdrop-blur-md px-3 py-1 rounded-xl border border-slate-800 text-[11px] text-slate-300 font-bold">
+                Melhor Grau: <span id="bestQualityText" class="text-amber-400 font-orbitron">Passeio</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Side HUD: Wheelie Tilt Angle Gauge -->
+    <div class="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 pointer-events-none z-10">
+        <div class="text-[10px] font-bold font-orbitron text-cyan-400 uppercase tracking-widest rotate-90 my-5">Ângulo</div>
+        <div class="w-6 h-52 bg-slate-900/90 border border-slate-700 rounded-full p-1 relative flex flex-col justify-end overflow-hidden shadow-2xl">
+            <!-- Optimal Sweet Spot Zone -->
+            <div class="absolute inset-x-0 top-[20%] h-[30%] bg-emerald-500/20 border-y border-emerald-500/40" title="Sweet Spot Zone"></div>
+            <!-- Raspa Rabiola Zone -->
+            <div class="absolute inset-x-0 top-[0%] h-[20%] bg-amber-500/30 border-b border-amber-500/50" title="Rabiola Scrape Zone"></div>
+            <!-- Meter Fill Bar -->
+            <div id="angleBar" class="w-full bg-cyan-400 rounded-full angle-meter-bar" style="height: 0%;"></div>
+        </div>
+        <div class="text-xs font-black font-orbitron text-white"><span id="angleDegrees">0</span>°</div>
+    </div>
+
+    <!-- Mobile Touch Controls: Wheelie / Brake + 5 Stunt Trick Buttons -->
+    <div class="absolute bottom-3 left-0 right-0 px-3 flex flex-col gap-2 z-20 pointer-events-auto md:hidden">
+        <!-- Trick Buttons Bar -->
+        <div class="flex justify-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+            <button id="btnTrick1" class="touch-btn shrink-0 w-14 h-14 rounded-xl bg-gradient-to-br from-purple-800 to-indigo-900 border border-purple-400/60 text-purple-200 flex flex-col items-center justify-center active:scale-90 shadow-md">
+                <i class="fas fa-child text-base"></i>
+                <span class="text-[8px] font-bold mt-0.5">No Pé</span>
+            </button>
+            <button id="btnTrick2" class="touch-btn shrink-0 w-14 h-14 rounded-xl bg-gradient-to-br from-blue-800 to-cyan-900 border border-cyan-400/60 text-cyan-200 flex flex-col items-center justify-center active:scale-90 shadow-md">
+                <i class="fas fa-hands text-base"></i>
+                <span class="text-[8px] font-bold mt-0.5">Sem Mão</span>
+            </button>
+            <button id="btnTrick3" class="touch-btn shrink-0 w-14 h-14 rounded-xl bg-gradient-to-br from-pink-800 to-rose-900 border border-pink-400/60 text-pink-200 flex flex-col items-center justify-center active:scale-90 shadow-md">
+                <i class="fas fa-person-running text-base"></i>
+                <span class="text-[8px] font-bold mt-0.5">Superman</span>
+            </button>
+            <button id="btnTrick4" class="touch-btn shrink-0 w-14 h-14 rounded-xl bg-gradient-to-br from-amber-700 to-red-900 border border-amber-400/60 text-amber-200 flex flex-col items-center justify-center active:scale-90 shadow-md">
+                <i class="fas fa-fire text-base"></i>
+                <span class="text-[8px] font-bold mt-0.5">Rabiola</span>
+            </button>
+            <button id="btnTrick5" class="touch-btn shrink-0 w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-800 to-teal-900 border border-emerald-400/60 text-emerald-200 flex flex-col items-center justify-center active:scale-90 shadow-md">
+                <i class="fas fa-water text-base"></i>
+                <span class="text-[8px] font-bold mt-0.5">Surfe</span>
+            </button>
+        </div>
+
+        <!-- Main Riding Controls -->
+        <div class="flex justify-between items-center px-2">
+            <button id="btnDown" class="touch-btn w-20 h-16 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-red-500/60 text-red-400 flex flex-col items-center justify-center shadow-lg active:scale-95">
+                <i class="fas fa-arrow-down text-lg"></i>
+                <span class="text-[9px] font-bold uppercase mt-0.5">Freio</span>
+            </button>
+
+            <button id="btnUp" class="touch-btn w-28 h-18 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-700 border-2 border-cyan-300 text-white flex flex-col items-center justify-center shadow-xl neon-glow-cyan active:scale-95">
+                <i class="fas fa-arrow-up text-2xl"></i>
+                <span class="text-[11px] font-black font-orbitron uppercase">Puxar Grau</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Desktop Controls Legend -->
+    <div class="hidden md:flex absolute bottom-3 left-1/2 -translate-x-1/2 gap-4 text-[11px] text-slate-300 bg-slate-900/90 backdrop-blur-md px-5 py-2 rounded-full border border-slate-700/80 pointer-events-none z-10">
+        <div class="flex items-center gap-1.5">
+            <kbd class="px-2 py-0.5 bg-slate-800 border border-slate-600 rounded text-cyan-300 font-mono font-bold">ESPAÇO / ↑</kbd>
+            <span>Empinar</span>
+        </div>
+        <div class="w-px bg-slate-700"></div>
+        <div class="flex items-center gap-1.5">
+            <kbd class="px-2 py-0.5 bg-slate-800 border border-slate-600 rounded text-red-300 font-mono font-bold">↓</kbd>
+            <span>Freio</span>
+        </div>
+        <div class="w-px bg-slate-700"></div>
+        <div class="flex items-center gap-1.5">
+            <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-600 rounded text-purple-300 font-mono font-bold">←</kbd>
+            <span>No Pé</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+            <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-600 rounded text-cyan-300 font-mono font-bold">→</kbd>
+            <span>Sem Mão</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+            <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-600 rounded text-pink-300 font-mono font-bold">A</kbd>
+            <span>Superman</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+            <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-600 rounded text-amber-300 font-mono font-bold">S</kbd>
+            <span>Rabiola</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+            <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-600 rounded text-emerald-300 font-mono font-bold">D</kbd>
+            <span>Surfe</span>
+        </div>
+    </div>
+
+    <!-- Start Overlay Screen -->
+    <div id="overlayScreen" class="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center z-30 p-6 text-center">
+        <div class="max-w-md w-full bg-slate-900/90 border border-slate-800 rounded-3xl p-8 shadow-2xl neon-border-cyan flex flex-col items-center">
+            
+            <div id="overlayHeader" class="mb-5">
+                <div class="w-20 h-20 bg-cyan-500/10 rounded-2xl border border-cyan-500/30 flex items-center justify-center mx-auto mb-3 text-cyan-400 text-4xl neon-glow-cyan">
+                    <i class="fas fa-motorcycle"></i>
+                </div>
+                <h1 class="text-4xl font-black font-orbitron tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-pink-500">
+                    GRAU FREESTYLE
+                </h1>
+                <p class="text-slate-400 text-xs mt-2">
+                    Modo Livre Sem Queda! Empine sem limites, solte faíscas raspando a rabiola e execute manobras incríveis.
+                </p>
+            </div>
+
+            <!-- Start Game Button -->
+            <button id="startBtn" class="w-full mt-4 py-4 px-8 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black font-orbitron text-lg rounded-2xl shadow-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-95 neon-glow-cyan flex items-center justify-center gap-3">
+                <i class="fas fa-play text-xl"></i>
+                <span>INICIAR SESSÃO DE GRAU</span>
+            </button>
+
+            <!-- Audio Toggle Control -->
+            <button id="audioToggleBtn" class="mt-4 text-xs text-slate-400 hover:text-cyan-400 flex items-center gap-2 transition-colors">
+                <i class="fas fa-volume-up text-cyan-400"></i> Som do Motor: <span id="audioStatusText" class="text-cyan-300 font-bold">LIGADO</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Audio Synth Logic & Main Engine Script -->
+    <script>
+        /**
+         * Audio Synthesizer Engine
+         */
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+                this.engineOsc = null;
+                this.engineGain = null;
+                this.enabled = true;
+                this.initialized = false;
+            }
+
+            init() {
+                if (this.initialized) return;
+                try {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioCtx();
+                    this.initialized = true;
+                } catch(e) {
+                    console.warn("Web Audio API not supported.");
+                }
+            }
+
+            startEngine() {
+                if (!this.enabled || !this.initialized || this.engineOsc) return;
+                try {
+                    this.engineOsc = this.ctx.createOscillator();
+                    this.engineGain = this.ctx.createGain();
+
+                    this.engineOsc.type = 'sawtooth';
+                    this.engineOsc.frequency.setValueAtTime(65, this.ctx.currentTime);
+
+                    const filter = this.ctx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(450, this.ctx.currentTime);
+
+                    this.engineGain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+
+                    this.engineOsc.connect(filter);
+                    filter.connect(this.engineGain);
+                    this.engineGain.connect(this.ctx.destination);
+
+                    this.engineOsc.start();
+                } catch(e) {}
+            }
+
+            updateEngine(pitchFactor) {
+                if (!this.engineOsc || !this.ctx) return;
+                const targetFreq = 65 + pitchFactor * 160;
+                this.engineOsc.frequency.setTargetAtTime(targetFreq, this.ctx.currentTime, 0.05);
+            }
+
+            stopEngine() {
+                if (this.engineOsc) {
+                    try {
+                        this.engineOsc.stop();
+                        this.engineOsc.disconnect();
+                    } catch(e) {}
+                    this.engineOsc = null;
+                }
+            }
+        }
+
+        const sound = new SoundFX();
+
+        /**
+         * Main Canvas Engine & Variables
+         */
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // UI Elements
+        const scoreText = document.getElementById('scoreText');
+        const highScoreText = document.getElementById('highScoreText');
+        const bestQualityText = document.getElementById('bestQualityText');
+        const angleBar = document.getElementById('angleBar');
+        const angleDegrees = document.getElementById('angleDegrees');
+        const overlayScreen = document.getElementById('overlayScreen');
+        const startBtn = document.getElementById('startBtn');
+        const evalBadge = document.getElementById('evalBadge');
+        const evalRankText = document.getElementById('evalRankText');
+        const trickActiveName = document.getElementById('trickActiveName');
+        const qualityLabel = document.getElementById('qualityLabel');
+        const multiplierText = document.getElementById('multiplierText');
+        const audioToggleBtn = document.getElementById('audioToggleBtn');
+        const audioStatusText = document.getElementById('audioStatusText');
+
+        // State Variables
+        let gameState = 'START';
+        let styleScore = 0;
+        let highScore = parseInt(localStorage.getItem('grau_freestyle_highscore') || '0');
+        let bestQualityIndex = 0;
+        highScoreText.textContent = highScore;
+
+        let lastTime = performance.now();
+        let scrollOffset = 0;
+        let gameSpeed = 8;
+
+        // Sparks Particle Pool for Tail Scrape (Rabiola)
+        const sparks = [];
+
+        // Quality Ratings Hierarchy
+        const QUALITY_RANKS = [
+            { name: "PASSEIO", minAngle: 0, color: "text-slate-400", bgClass: "bg-slate-700/80", bonus: 1.0 },
+            { name: "GRAU LEVE", minAngle: 25, color: "text-cyan-400", bgClass: "bg-cyan-600/90", bonus: 1.5 },
+            { name: "GRAU PERFEITO", minAngle: 45, color: "text-emerald-400", bgClass: "bg-emerald-600/90", bonus: 2.5 },
+            { name: "MELHOR GRAU", minAngle: 65, color: "text-pink-400", bgClass: "bg-pink-600/90", bonus: 4.0 },
+            { name: "RASPA RABIOLA 🔥", minAngle: 82, color: "text-amber-400", bgClass: "bg-amber-500/90", bonus: 6.0 }
+        ];
+
+        // Motorcycle Physics State
+        const bike = {
+            x: 0,
+            y: 0,
+            angle: 0, // Wheelie tilt angle in degrees (0 to ~92 max scrape)
+            angularVelocity: 0,
+            gravity: 0.16,
+            pullPower: 0.44,
+            brakePower: 0.40,
+            wheelRadius: 22,
+            isScrapingTail: false
+        };
+
+        // Active Controls State
+        const keys = {
+            up: false,
+            down: false,
+            trick1: false, // No Pé
+            trick2: false, // Sem Mão
+            trick3: false, // Superman
+            trick4: false, // Rabiola (Puxada Máxima)
+            trick5: false  // Surfe
+        };
+
+        // City Background Layers
+        const cityBuildings = [];
+        const numBuildings = 22;
+
+        function initBackground() {
+            cityBuildings.length = 0;
+            let currentX = -100;
+            for (let i = 0; i < numBuildings; i++) {
+                const width = 70 + Math.random() * 90;
+                const height = 130 + Math.random() * 220;
+                cityBuildings.push({
+                    x: currentX,
+                    width: width,
+                    height: height,
+                    color: `hsl(${220 + Math.random() * 30}, 30%, ${10 + Math.random() * 14}%)`,
+                    windowColor: Math.random() > 0.35 ? 'rgba(6, 182, 212, 0.6)' : 'rgba(236, 72, 153, 0.5)'
+                });
+                currentX += width + (Math.random() * 25);
+            }
+        }
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            bike.x = canvas.width * 0.35;
+            bike.y = canvas.height * 0.72; // Ground baseline height
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        initBackground();
+
+        /**
+         * Key Listeners (Keyboard Support)
+         */
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp') { keys.up = true; e.preventDefault(); }
+            if (e.code === 'ArrowDown') { keys.down = true; e.preventDefault(); }
+            if (e.code === 'ArrowLeft') { keys.trick1 = true; e.preventDefault(); }
+            if (e.code === 'ArrowRight') { keys.trick2 = true; e.preventDefault(); }
+            if (e.code === 'KeyA') { keys.trick3 = true; e.preventDefault(); }
+            if (e.code === 'KeyS') { keys.trick4 = true; e.preventDefault(); }
+            if (e.code === 'KeyD') { keys.trick5 = true; e.preventDefault(); }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp') keys.up = false;
+            if (e.code === 'ArrowDown') keys.down = false;
+            if (e.code === 'ArrowLeft') keys.trick1 = false;
+            if (e.code === 'ArrowRight') keys.trick2 = false;
+            if (e.code === 'KeyA') keys.trick3 = false;
+            if (e.code === 'KeyS') keys.trick4 = false;
+            if (e.code === 'KeyD') keys.trick5 = false;
+        });
+
+        // Mobile Touch Handlers
+        const bindTouch = (elem, key) => {
+            if(!elem) return;
+            const start = (e) => { e.preventDefault(); keys[key] = true; elem.classList.add('active-key'); };
+            const end = (e) => { e.preventDefault(); keys[key] = false; elem.classList.remove('active-key'); };
+            
+            elem.addEventListener('touchstart', start);
+            elem.addEventListener('touchend', end);
+            elem.addEventListener('mousedown', start);
+            elem.addEventListener('mouseup', end);
+        };
+
+        bindTouch(document.getElementById('btnUp'), 'up');
+        bindTouch(document.getElementById('btnDown'), 'down');
+        bindTouch(document.getElementById('btnTrick1'), 'trick1');
+        bindTouch(document.getElementById('btnTrick2'), 'trick2');
+        bindTouch(document.getElementById('btnTrick3'), 'trick3');
+        bindTouch(document.getElementById('btnTrick4'), 'trick4');
+        bindTouch(document.getElementById('btnTrick5'), 'trick5');
+
+        audioToggleBtn.addEventListener('click', () => {
+            sound.enabled = !sound.enabled;
+            audioStatusText.textContent = sound.enabled ? 'LIGADO' : 'DESLIGADO';
+            audioStatusText.className = sound.enabled ? 'text-cyan-300 font-bold' : 'text-slate-500 font-bold';
+            if (!sound.enabled) sound.stopEngine();
+            else if (gameState === 'PLAYING') sound.startEngine();
+        });
+
+        startBtn.addEventListener('click', () => {
+            sound.init();
+            resetGame();
+            gameState = 'PLAYING';
+            overlayScreen.classList.add('hidden');
+            sound.startEngine();
+        });
+
+        function resetGame() {
+            styleScore = 0;
+            bike.angle = 0;
+            bike.angularVelocity = 0;
+            scrollOffset = 0;
+            bestQualityIndex = 0;
+            scoreText.textContent = '0';
+            bestQualityText.textContent = QUALITY_RANKS[0].name;
+        }
+
+        /**
+         * Spark Particle Creator (Sparks on Scraping Tail)
+         */
+        function createSparks(x, y) {
+            for (let i = 0; i < 4; i++) {
+                sparks.push({
+                    x: x,
+                    y: y,
+                    vx: -3 - Math.random() * 6,
+                    vy: (Math.random() - 0.7) * 4,
+                    size: 2 + Math.random() * 3,
+                    life: 1.0,
+                    color: Math.random() > 0.3 ? '#f59e0b' : '#ef4444'
+                });
+            }
+        }
+
+        function updateSparks() {
+            for (let i = sparks.length - 1; i >= 0; i--) {
+                const s = sparks[i];
+                s.x += s.vx;
+                s.y += s.vy;
+                s.life -= 0.05;
+                if (s.life <= 0) sparks.splice(i, 1);
+            }
+        }
+
+        /**
+         * Update Loop - Physics & Stunt Evaluation
+         */
+        function update(dt) {
+            if (gameState !== 'PLAYING') return;
+
+            // Apply Up/Down Control Torque or Trick 4 (Force Max Pull)
+            if (keys.up || keys.trick4) {
+                bike.angularVelocity += bike.pullPower;
+            } else if (keys.down) {
+                bike.angularVelocity -= bike.brakePower;
+            }
+
+            // Gravity pulls front wheel down proportionately
+            bike.angularVelocity -= bike.gravity * (1 + (bike.angle / 50));
+            bike.angle += bike.angularVelocity;
+
+            // GROUND BOUNDS: Wheel cannot dip below 0 deg
+            if (bike.angle < 0) {
+                bike.angle = 0;
+                bike.angularVelocity = 0;
+            }
+
+            // NO CRASH MANDATE: Max Angle Cap (~90 degrees) - Tail Scrapes the Ground
+            const MAX_TILT = 88;
+            if (bike.angle >= MAX_TILT) {
+                bike.angle = MAX_TILT;
+                bike.angularVelocity = 0;
+                bike.isScrapingTail = true;
+            } else {
+                bike.isScrapingTail = false;
+            }
+
+            // Forward Scroll
+            const speedFactor = 1 + (bike.angle / 120);
+            scrollOffset += gameSpeed * speedFactor;
+
+            // Quality Evaluation Rank Calculation
+            const currentAngle = Math.round(bike.angle);
+            angleDegrees.textContent = currentAngle;
+
+            let currentRank = QUALITY_RANKS[0];
+            let currentRankIndex = 0;
+
+            for (let i = QUALITY_RANKS.length - 1; i >= 0; i--) {
+                if (currentAngle >= QUALITY_RANKS[i].minAngle) {
+                    currentRank = QUALITY_RANKS[i];
+                    currentRankIndex = i;
+                    break;
+                }
+            }
+
+            // Record Best Quality Achieved
+            if (currentRankIndex > bestQualityIndex) {
+                bestQualityIndex = currentRankIndex;
+                bestQualityText.textContent = QUALITY_RANKS[bestQualityIndex].name;
+            }
+
+            // Trick Multiplier Calculation
+            let trickBonusMultiplier = 1.0;
+            let activeTrickLabel = "";
+
+            if (keys.trick1) { trickBonusMultiplier = 2.2; activeTrickLabel = "| No Pé"; }
+            else if (keys.trick2) { trickBonusMultiplier = 2.5; activeTrickLabel = "| Sem Mãos"; }
+            else if (keys.trick3) { trickBonusMultiplier = 3.0; activeTrickLabel = "| Superman"; }
+            else if (keys.trick4) { trickBonusMultiplier = 3.5; activeTrickLabel = "| Raspa Rabiola"; }
+            else if (keys.trick5) { trickBonusMultiplier = 2.8; activeTrickLabel = "| Surfe"; }
+
+            const totalMultiplier = (currentRank.bonus * trickBonusMultiplier).toFixed(1);
+
+            // Accumulate Style Score
+            if (currentAngle > 10) {
+                styleScore += (currentAngle * 0.15) * parseFloat(totalMultiplier);
+            }
+            scoreText.textContent = Math.floor(styleScore);
+
+            // Save Highscore
+            if (styleScore > highScore) {
+                highScore = Math.floor(styleScore);
+                localStorage.setItem('grau_freestyle_highscore', highScore.toString());
+                highScoreText.textContent = highScore;
+            }
+
+            // UI HUD Update
+            evalRankText.textContent = currentRank.name;
+            trickActiveName.textContent = activeTrickLabel;
+            evalBadge.className = `text-xs font-black font-orbitron px-4 py-1.5 rounded-full uppercase tracking-widest text-center transition-all duration-200 transform ${currentRank.bgClass} neon-glow-cyan`;
+            qualityLabel.textContent = currentRank.name;
+            multiplierText.textContent = totalMultiplier;
+
+            // HUD Gauge Bar Height
+            const meterHeightPercent = Math.min(100, (bike.angle / MAX_TILT) * 100);
+            angleBar.style.height = `${meterHeightPercent}%`;
+
+            if (bike.isScrapingTail) {
+                angleBar.className = 'w-full rounded-full angle-meter-bar bg-amber-400 shadow-[0_0_12px_#f59e0b]';
+            } else if (currentAngle >= 45) {
+                angleBar.className = 'w-full rounded-full angle-meter-bar bg-emerald-400 shadow-[0_0_10px_#10b981]';
+            } else {
+                angleBar.className = 'w-full rounded-full angle-meter-bar bg-cyan-400';
+            }
+
+            // Engine Pitch Adjustment
+            sound.updateEngine(bike.angle / 75);
+
+            // Particle Updates
+            updateSparks();
+        }
+
+        /**
+         * Render Graphics - Canvas
+         */
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const groundY = bike.y + bike.wheelRadius;
+
+            // 1. Sky Gradient
+            const skyGradient = ctx.createLinearGradient(0, 0, 0, groundY);
+            skyGradient.addColorStop(0, '#050711');
+            skyGradient.addColorStop(0.65, '#0e1628');
+            skyGradient.addColorStop(1, '#1e1b4b');
+            ctx.fillStyle = skyGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 2. Parallax City Skyline Background
+            ctx.save();
+            cityBuildings.forEach(b => {
+                let rx = (b.x - scrollOffset * 0.25) % (canvas.width + 300);
+                if (rx < -150) rx += canvas.width + 300;
+
+                const bx = rx - 100;
+                const by = groundY - b.height;
+
+                ctx.fillStyle = b.color;
+                ctx.fillRect(bx, by, b.width, b.height);
+
+                ctx.fillStyle = b.windowColor;
+                for (let wy = by + 18; wy < groundY - 20; wy += 28) {
+                    for (let wx = bx + 12; wx < bx + b.width - 16; wx += 22) {
+                        ctx.fillRect(wx, wy, 9, 13);
+                    }
+                }
+            });
+            ctx.restore();
+
+            // 3. Asphalt Road & Glowing Curb
+            ctx.fillStyle = '#080c16';
+            ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+
+            ctx.strokeStyle = '#06b6d4';
+            ctx.lineWidth = 4;
+            ctx.shadowColor = '#06b6d4';
+            ctx.shadowBlur = 8;
+            ctx.beginPath();
+            ctx.moveTo(0, groundY);
+            ctx.lineTo(canvas.width, groundY);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            // Animated Road Dash Lines
+            ctx.fillStyle = '#cbd5e1';
+            const dashWidth = 55;
+            const dashGap = 45;
+            const totalDash = dashWidth + dashGap;
+            const offset = (scrollOffset * 1.2) % totalDash;
+
+            for (let x = -offset; x < canvas.width; x += totalDash) {
+                ctx.fillRect(x, groundY + 32, dashWidth, 5);
+            }
+
+            // 4. Render Motorcycle & Articulated Rider
+            ctx.save();
+            const backWheelX = bike.x;
+            const backWheelY = bike.y;
+
+            ctx.translate(backWheelX, backWheelY);
+            ctx.rotate(-bike.angle * Math.PI / 180);
+
+            const rad = bike.wheelRadius;
+
+            // Exhaust Smoke & Tail Scrape Sparks Trigger
+            if (gameState === 'PLAYING' && bike.angle > 20) {
+                ctx.save();
+                ctx.fillStyle = 'rgba(236, 72, 153, 0.35)';
+                ctx.beginPath();
+                ctx.arc(-38 - Math.random() * 15, 6 + Math.random() * 6, 4 + Math.random() * 6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // Tail Scrape Position (Rabiola) & Sparks Generation
+            if (bike.isScrapingTail) {
+                const tailX = -32;
+                const tailY = 12;
+                // Transform to world coordinates for global particle rendering
+                const worldRad = -bike.angle * Math.PI / 180;
+                const worldTailX = backWheelX + (tailX * Math.cos(worldRad) - tailY * Math.sin(worldRad));
+                const worldTailY = backWheelY + (tailX * Math.sin(worldRad) + tailY * Math.cos(worldRad));
+
+                createSparks(worldTailX, worldTailY);
+            }
+
+            // Wheels
+            drawWheel(ctx, 0, 0, rad, scrollOffset); // Back Wheel
+            const frontWheelX = 85;
+            const frontWheelY = 0;
+            drawWheel(ctx, frontWheelX, frontWheelY, rad, scrollOffset); // Front Wheel
+
+            // Reinforced Vector Chassis Frame
+            ctx.strokeStyle = '#ec4899';
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(0, 0); 
+            ctx.lineTo(35, -18); 
+            ctx.lineTo(frontWheelX - 10, -25); 
+            ctx.lineTo(frontWheelX, 0); 
+            ctx.stroke();
+
+            // Engine Block
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(24, -22, 24, 18);
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(24, -22, 24, 18);
+
+            // Sport Exhaust Pipe with Scrape Extension Bar
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(30, -10);
+            ctx.lineTo(-30, 8);
+            ctx.stroke();
+
+            // Fuel Tank & Tail Fairing
+            ctx.fillStyle = '#06b6d4';
+            ctx.beginPath();
+            ctx.moveTo(18, -32);
+            ctx.lineTo(58, -35);
+            ctx.lineTo(65, -20);
+            ctx.lineTo(10, -20);
+            ctx.closePath();
+            ctx.fill();
+
+            // Seat
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(-2, -33, 26, 8);
+
+            // Front Fork & Handlebars
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(frontWheelX, 0);
+            ctx.lineTo(68, -42);
+            ctx.stroke();
+
+            // Headlight
+            ctx.fillStyle = '#a5f3fc';
+            ctx.beginPath();
+            ctx.arc(72, -38, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // --- ARTICULATED RIDER & MANEUVER POSITIONS ---
+            drawArticulatedRider(ctx, bike.angle, keys);
+
+            ctx.restore(); // Restore Bike Coordinate Matrix
+
+            // Render Global Sparks overlay
+            drawSparks(ctx);
+        }
+
+        /**
+         * Articulated Rider Rendering Logic for 5 Distinct Stunts
+         */
+        function drawArticulatedRider(context, tiltAngle, activeKeys) {
+            const hipX = 8;
+            const hipY = -35;
+            const handleX = 68;
+            const handleY = -40;
+
+            context.save();
+
+            if (activeKeys.trick1) {
+                // TRICK 1: "NO PÉ" (Standing tall on seat)
+                context.strokeStyle = '#1e293b'; // Legs
+                context.lineWidth = 7;
+                context.beginPath();
+                context.moveTo(hipX + 12, hipY - 24);
+                context.lineTo(10, -33); // Feet on seat
+                context.stroke();
+
+                context.strokeStyle = '#ec4899'; // Torso
+                context.lineWidth = 10;
+                context.beginPath();
+                context.moveTo(hipX + 12, hipY - 24);
+                context.lineTo(hipX + 12, hipY - 58);
+                context.stroke();
+
+                context.strokeStyle = '#f43f5e'; // Arms reaching forward
+                context.lineWidth = 5;
+                context.beginPath();
+                context.moveTo(hipX + 12, hipY - 52);
+                context.lineTo(handleX, handleY);
+                context.stroke();
+
+                // Helmet
+                context.fillStyle = '#0f172a';
+                context.beginPath();
+                context.arc(hipX + 12, hipY - 68, 10, 0, Math.PI * 2);
+                context.fill();
+                context.fillStyle = '#06b6d4';
+                context.fillRect(hipX + 16, hipY - 71, 6, 6);
+
+            } else if (activeKeys.trick2) {
+                // TRICK 2: "SEM AS MÃOS" (Arms fully extended sideways)
+                context.strokeStyle = '#1e293b'; // Legs
+                context.lineWidth = 7;
+                context.beginPath();
+                context.moveTo(hipX, hipY);
+                context.lineTo(28, -20);
+                context.lineTo(32, -8);
+                context.stroke();
+
+                context.strokeStyle = '#ec4899'; // Torso
+                context.lineWidth = 10;
+                context.beginPath();
+                context.moveTo(hipX, hipY);
+                context.lineTo(hipX + 8, hipY - 30);
+                context.stroke();
+
+                context.strokeStyle = '#f43f5e'; // Arms spread wide in air
+                context.lineWidth = 5;
+                context.beginPath();
+                context.moveTo(hipX + 8, hipY - 26);
+                context.lineTo(hipX - 20, hipY - 48); // Left arm back
+                context.moveTo(hipX + 8, hipY - 26);
+                context.lineTo(hipX + 38, hipY - 48); // Right arm forward
+                context.stroke();
+
+                // Helmet
+                context.fillStyle = '#0f172a';
+                context.beginPath();
+                context.arc(hipX + 10, hipY - 42, 10, 0, Math.PI * 2);
+                context.fill();
+                context.fillStyle = '#06b6d4';
+                context.fillRect(hipX + 14, hipY - 45, 6, 6);
+
+            } else if (activeKeys.trick3) {
+                // TRICK 3: "SUPERMAN" (Legs floating horizontally behind in air)
+                context.strokeStyle = '#1e293b'; // Legs stretched straight back
+                context.lineWidth = 7;
+                context.beginPath();
+                context.moveTo(hipX, hipY - 10);
+                context.lineTo(-30, hipY - 12);
+                context.stroke();
+
+                context.strokeStyle = '#ec4899'; // Torso leaning low forward
+                context.lineWidth = 10;
+                context.beginPath();
+                context.moveTo(hipX, hipY - 10);
+                context.lineTo(hipX + 30, hipY - 20);
+                context.stroke();
+
+                context.strokeStyle = '#f43f5e'; // Arms on handlebars
+                context.lineWidth = 5;
+                context.beginPath();
+                context.moveTo(hipX + 30, hipY - 20);
+                context.lineTo(handleX, handleY);
+                context.stroke();
+
+                // Helmet
+                context.fillStyle = '#0f172a';
+                context.beginPath();
+                context.arc(hipX + 38, hipY - 28, 10, 0, Math.PI * 2);
+                context.fill();
+                context.fillStyle = '#06b6d4';
+                context.fillRect(hipX + 42, hipY - 31, 6, 6);
+
+            } else if (activeKeys.trick4) {
+                // TRICK 4: "RABIOLA SCRAPE" (Aggressive lean back)
+                context.strokeStyle = '#1e293b'; // Legs
+                context.lineWidth = 7;
+                context.beginPath();
+                context.moveTo(hipX, hipY);
+                context.lineTo(28, -20);
+                context.lineTo(32, -8);
+                context.stroke();
+
+                context.strokeStyle = '#ec4899'; // Torso pulled far back
+                context.lineWidth = 10;
+                context.beginPath();
+                context.moveTo(hipX, hipY);
+                context.lineTo(hipX - 12, hipY - 28);
+                context.stroke();
+
+                context.strokeStyle = '#f43f5e'; // Arms stretched tight
+                context.lineWidth = 5;
+                context.beginPath();
+                context.moveTo(hipX - 12, hipY - 28);
+                context.lineTo(handleX, handleY);
+                context.stroke();
+
+                // Helmet
+                context.fillStyle = '#0f172a';
+                context.beginPath();
+                context.arc(hipX - 10, hipY - 40, 10, 0, Math.PI * 2);
+                context.fill();
+                context.fillStyle = '#06b6d4';
+                context.fillRect(hipX - 6, hipY - 43, 6, 6);
+
+            } else if (activeKeys.trick5) {
+                // TRICK 5: "SURFE" (Crouched / Standing sideways like surfing)
+                context.strokeStyle = '#1e293b'; // Feet spread on seat
+                context.lineWidth = 7;
+                context.beginPath();
+                context.moveTo(hipX + 5, hipY - 26);
+                context.lineTo(-2, -33); // Left foot back
+                context.moveTo(hipX + 5, hipY - 26);
+                context.lineTo(20, -33); // Right foot front
+                context.stroke();
+
+                context.strokeStyle = '#ec4899'; // Torso tall
+                context.lineWidth = 10;
+                context.beginPath();
+                context.moveTo(hipX + 5, hipY - 26);
+                context.lineTo(hipX + 5, hipY - 56);
+                context.stroke();
+
+                context.strokeStyle = '#f43f5e'; // Arm holding handle with one hand
+                context.lineWidth = 5;
+                context.beginPath();
+                context.moveTo(hipX + 5, hipY - 50);
+                context.lineTo(handleX, handleY);
+                context.moveTo(hipX + 5, hipY - 50);
+                context.lineTo(hipX - 15, hipY - 60); // Other arm balanced in air
+                context.stroke();
+
+                // Helmet
+                context.fillStyle = '#0f172a';
+                context.beginPath();
+                context.arc(hipX + 5, hipY - 66, 10, 0, Math.PI * 2);
+                context.fill();
+                context.fillStyle = '#06b6d4';
+                context.fillRect(hipX + 9, hipY - 69, 6, 6);
+
+            } else {
+                // DEFAULT RIDING POSTURE
+                const leanOffset = (tiltAngle > 45) ? 10 : 0;
+
+                context.strokeStyle = '#1e293b';
+                context.lineWidth = 7;
+                context.beginPath();
+                context.moveTo(hipX, hipY);
+                context.lineTo(28, -20);
+                context.lineTo(32, -8);
+                context.stroke();
+
+                context.strokeStyle = '#ec4899';
+                context.lineWidth = 10;
+                context.beginPath();
+                context.moveTo(hipX, hipY);
+                context.lineTo(hipX + 16 + leanOffset, hipY - 28);
+                context.stroke();
+
+                context.strokeStyle = '#f43f5e';
+                context.lineWidth = 5;
+                context.beginPath();
+                context.moveTo(hipX + 16 + leanOffset, hipY - 28);
+                context.lineTo(handleX, handleY);
+                context.stroke();
+
+                context.fillStyle = '#0f172a';
+                context.beginPath();
+                context.arc(hipX + 20 + leanOffset, hipY - 40, 10, 0, Math.PI * 2);
+                context.fill();
+                context.fillStyle = '#06b6d4';
+                context.fillRect(hipX + 24 + leanOffset, hipY - 43, 6, 6);
+            }
+
+            context.restore();
+        }
+
+        /**
+         * Helper: Draw Spinning Wheels
+         */
+        function drawWheel(context, x, y, radius, spinOffset) {
+            context.save();
+            context.translate(x, y);
+
+            // Tire Rubber
+            context.fillStyle = '#0f172a';
+            context.beginPath();
+            context.arc(0, 0, radius, 0, Math.PI * 2);
+            context.fill();
+
+            // Neon Rim Outline
+            context.strokeStyle = '#06b6d4';
+            context.lineWidth = 3;
+            context.stroke();
+
+            // Inner Hub
+            context.fillStyle = '#334155';
+            context.beginPath();
+            context.arc(0, 0, radius * 0.4, 0, Math.PI * 2);
+            context.fill();
+
+            // Rotating Spokes
+            context.strokeStyle = '#94a3b8';
+            context.lineWidth = 2;
+            const rotationAngle = (spinOffset * 0.12) % (Math.PI * 2);
+
+            for (let i = 0; i < 4; i++) {
+                const angle = rotationAngle + (i * Math.PI / 2);
+                context.beginPath();
+                context.moveTo(0, 0);
+                context.lineTo(Math.cos(angle) * (radius - 2), Math.sin(angle) * (radius - 2));
+                context.stroke();
+            }
+
+            context.restore();
+        }
+
+        /**
+         * Helper: Draw Sparks Particles
+         */
+        function drawSparks(context) {
+            context.save();
+            sparks.forEach(s => {
+                context.fillStyle = s.color;
+                context.globalAlpha = Math.max(0, s.life);
+                context.beginPath();
+                context.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+                context.fill();
+            });
+            context.restore();
+        }
+
+        /**
+         * Main Animation Loop
+         */
+        function gameLoop(timestamp) {
+            const dt = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
+
+            update(dt);
+            draw();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.onload = () => {
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>
